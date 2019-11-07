@@ -80,7 +80,7 @@ Code
 #Add controller and set joysticks
 joy = xbox.Joystick()
 leftJoystick = joy.leftY()
-rightJoystick = joy.rightX()
+rightJoystick = joy.rightY()
 
 #Add PWM board and set frequency
 pwm = PCA9685(0x40, debug=False)
@@ -96,57 +96,67 @@ GPIO.setmode(GPIO.BCM)
 #xSpeed is forward and backward on the left joystick, zRotation is left and right on the right joystick
 def arcadeDrive(xSpeed, zRotation, squareInputs):
 
-    #Add speed multiplier 
-    xSpeed = xSpeed * speedMultiplier
+  #Add speed multiplier 
+  xSpeed = xSpeed * speedMultiplier
 
-    #Add Drag to correct robot drift
-    xSpeed += drag
+  #Add Drag to correct robot drift
+  xSpeed += drag
 
-    #Clamp xSpeed and zRotation to -1.0 to 1.0
-    xSpeed = max(min(xSpeed, 1.0), -1.0)
-    zRotation = max(min(zRotation, 1.0), -1.0)
+  #Clamp xSpeed and zRotation to -1.0 to 1.0
+  xSpeed = max(min(xSpeed, 1.0), -1.0)
+  zRotation = max(min(zRotation, 1.0), -1.0)
 
-    #Square inputs to control speed at a curve
-    if squareInputs:
-      xSpeed = math.copysign(xSpeed * xSpeed, xSpeed)
-      zRotation = math.copysign(zRotation * zRotation, zRotation)
+  #Square inputs to control speed at a curve
+  if squareInputs:
+    xSpeed = math.copysign(xSpeed * xSpeed, xSpeed)
+    zRotation = math.copysign(zRotation * zRotation, zRotation)
 
-    #maxInput math for setting speeds
-    maxInput = math.copysign(max(abs(xSpeed), abs(zRotation)), xSpeed)
+  #maxInput math for setting speeds
+  maxInput = math.copysign(max(abs(xSpeed), abs(zRotation)), xSpeed)
 
-    #If statements seperating turning and direction into quadrants
-    if xSpeed >= 0.0:
-        if zRotation >= 0.0:
-          #First Quadrant
-          leftMotorOutput = maxInput
-          rightMotorOutput = xSpeed - zRotation
-        else:
-          #Second Quadrant
-          leftMotorOutput = xSpeed + zRotation
-          rightMotorOutput = maxInput
+  #If statements seperating turning and direction into quadrants
+  if xSpeed >= 0.0:
+    if zRotation >= 0.0:
+      #First Quadrant
+      leftMotorOutput = maxInput
+      rightMotorOutput = xSpeed - zRotation
     else:
-      if zRotation >= 0.0:
-        #Third Quadrant
-        leftMotorOutput = xSpeed + zRotation
-        rightMotorOutput = maxInput
-      else:
-        #Fourth Quadrant
-        leftMotorOutput = maxInput
-        rightMotorOutput = xSpeed - zRotation
-    #Returns left and right motor output values between -1.0 and 1.0 as a tuple
-    return leftMotorOutput, rightMotorOutput;
+      #Second Quadrant
+      leftMotorOutput = xSpeed + zRotation
+      rightMotorOutput = maxInput
+  else:
+    if zRotation >= 0.0:
+      #Third Quadrant
+      leftMotorOutput = xSpeed + zRotation
+      rightMotorOutput = maxInput
+    else:
+      #Fourth Quadrant
+      leftMotorOutput = maxInput
+      rightMotorOutput = xSpeed - zRotation
+
+  #Returns left and right motor output values between -1.0 and 1.0 as a tuple
+  return leftMotorOutput, rightMotorOutput;
 
 '''
 Main loop- setting run to false exits program
 '''
 while run == True:
 
+  #Press Y to Enable
+  if joy.Y() == 1:
+    enable = True
+    currentTimeout = timeout
+
+  #Press start + back to exit program (run = false)
+  if joy.Start() == 1 and joy.Back() == 1:
+    run = False
+
+  #Check if controller is connected
+  if not joy.connected():
+    enable = False
+
   #Enabled loop
   if enable == True:
-
-    #Check if controller is connected
-    if not joy.connected():
-      enable = False
 
     #Check whether RSL should be on or off
     #     if rslStatus == 1:
@@ -173,7 +183,7 @@ while run == True:
     else: 
       if (adjustedValueRight >= (1500 - deadzone) and adjustedValueRight <= (1500 + deadzone)):
         adjustedValueRight = 1500
-      #If not in the deadzone, reset timeout countdown
+        #If not in the deadzone, reset timeout countdown
       else:
         currentTimeout = timeout
 
@@ -186,22 +196,14 @@ while run == True:
     #Press X to Disable
     if joy.X() == 1:
       enable = False
-  else:
-    #If disabled, 
-    #stop motors
-    pwm.setServoPulse(frontLeftMotor, 1500)
-    pwm.setServoPulse(backLeftMotor, 1500)
-    pwm.setServoPulse(frontRightMotor, 1500)
-    pwm.setServoPulse(backRightMotor, 1500)
-  #Press Y to Enable
-  if joy.Y() == 1:
-    enable = True
-    currentTimeout = timeout
- 
-
-  #Press start + back to exit program (run = false)
-  if joy.Start() == 1 and joy.Back() == 1:
-    run = False
+    else:
+      #If disabled, 
+      #stop motors
+      pwm.setServoPulse(frontLeftMotor, 1500)
+      pwm.setServoPulse(backLeftMotor, 1500)
+      pwm.setServoPulse(frontRightMotor, 1500)
+      pwm.setServoPulse(backRightMotor, 1500)
+  
 
 #Double check that motors are off before exiting 
 pwm.setServoPulse(frontLeftMotor, 1500)
@@ -214,3 +216,4 @@ GPIO.cleanup()
 
 #Close Joystick interface
 joy.close()
+

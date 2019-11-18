@@ -22,7 +22,7 @@ deadzone = 200
 timeout = 5.0
 
 #Cleanup GPIO
-GPIO.cleanup()
+# GPIO.cleanup()
 
 
 '''
